@@ -1,0 +1,92 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sokan-app
+    container_name: sokan-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - sokan
+    depends_on:
+      - mysql
+      - redis
+
+  nginx:
+    image: nginx:alpine
+    container_name: sokan-nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - sokan
+    depends_on:
+      - app
+
+  mysql:
+    image: mysql:8.0
+    container_name: sokan-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-sokan}
+      MYSQL_USER: ${DB_USERNAME:-sokan}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-123456}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - sokan
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: sokan-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - sokan
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: sokan-mailhog
+    restart: unless-stopped
+    ports:
+      - "${MAIL_PORT:-1025}:1025"
+      - "${MAILHOG_UI_PORT:-8025}:8025"
+    networks:
+      - sokan
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: sokan-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: ${DB_USERNAME:-sokan}
+      PMA_PASSWORD: ${DB_PASSWORD:-123456}
+    ports:
+      - "${PHPMYADMIN_PORT:-8080}:80"
+    networks:
+      - sokan
+    depends_on:
+      - mysql
+
+networks:
+  sokan:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
