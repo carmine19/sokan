@@ -12,8 +12,10 @@ services:
     networks:
       - sokan
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   nginx:
     image: nginx:alpine
@@ -53,8 +55,16 @@ services:
     image: redis:7-alpine
     container_name: sokan-redis
     restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
     ports:
       - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - sokan
 
@@ -89,4 +99,6 @@ networks:
 
 volumes:
   mysql_data:
+    driver: local
+  redis_data:
     driver: local
