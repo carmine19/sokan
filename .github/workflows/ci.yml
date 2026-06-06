@@ -7,10 +7,10 @@ on:
     branches: [main, develop]
 
 jobs:
-  test:
-    name: Lint & Test
+  php:
+    name: PHP Lint, Analyse & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -43,8 +43,35 @@ jobs:
       - name: Check code style (Pint)
         run: ./vendor/bin/pint --test
 
+      - name: Static analysis (PHPStan level 5)
+        run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
       - name: Run tests
         run: php artisan test --parallel
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
+
+  js:
+    name: JS Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Check JS style (ESLint)
+        run: npm run lint
+
+      - name: Check formatting (Prettier)
+        run: npm run format:check
